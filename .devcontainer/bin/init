@@ -1,0 +1,159 @@
+#!/bin/bash
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEVCONTAINER_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(dirname "$DEVCONTAINER_DIR")"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check if already initialized
+if [ -f "$DEVCONTAINER_DIR/compose.yaml" ]; then
+    echo -e "${YELLOW}This project has already been initialized.${NC}"
+    echo ""
+    # Try to extract configuration from compose.yaml
+    if grep -q "ports:" "$DEVCONTAINER_DIR/compose.yaml" 2>/dev/null; then
+        echo "Current configuration: Web application with ports"
+        grep -A10 "ports:" "$DEVCONTAINER_DIR/compose.yaml" | grep -E "^[ ]*-" | sed 's/.*"\([0-9]*\):.*/  - Port \1/'
+    else
+        echo "Current configuration: No ports configured"
+    fi
+    echo ""
+    read -p "Do you want to reinitialize? (y/N): " reinit
+    if [[ ! "$reinit" =~ ^[Yy]$ ]]; then
+        echo "Initialization cancelled."
+        exit 0
+    fi
+fi
+
+echo -e "${GREEN}=== DevContainer Project Initialization ===${NC}"
+echo ""
+
+# Project type selection
+echo "Select your project type:"
+echo "  1) Web Application (with ports)"
+echo "  2) CLI Tool (no ports)"
+echo "  3) Library/Package (no ports)"
+echo "  4) Custom (configure manually)"
+echo ""
+read -p "Enter your choice (1-4): " project_type
+
+case $project_type in
+    1)
+        PROJECT_TYPE="web"
+        echo ""
+        echo "Enter the ports your application needs (space-separated)."
+        echo "Examples:"
+        echo "  - Next.js/React: 3000"
+        echo "  - API + Frontend: 3000 8080"
+        echo "  - Full stack with DB: 3000 8080 5432"
+        echo ""
+        read -p "Ports: " -a PORTS
+
+        if [ ${#PORTS[@]} -eq 0 ]; then
+            echo -e "${RED}Error: Web applications require at least one port.${NC}"
+            exit 1
+        fi
+        ;;
+    2)
+        PROJECT_TYPE="cli"
+        PORTS=()
+        echo -e "${GREEN}CLI tool configuration selected (no ports).${NC}"
+        ;;
+    3)
+        PROJECT_TYPE="library"
+        PORTS=()
+        echo -e "${GREEN}Library/Package configuration selected (no ports).${NC}"
+        ;;
+    4)
+        PROJECT_TYPE="custom"
+        read -p "Do you need port forwarding? (y/N): " need_ports
+        if [[ "$need_ports" =~ ^[Yy]$ ]]; then
+            echo ""
+            read -p "Enter ports (space-separated): " -a PORTS
+        else
+            PORTS=()
+        fi
+        ;;
+    *)
+        echo -e "${RED}Invalid choice. Exiting.${NC}"
+        exit 1
+        ;;
+esac
+
+# Generate compose.yaml from template
+echo ""
+echo -e "${GREEN}Generating Docker Compose configuration...${NC}"
+
+# Build ports section
+if [ ${#PORTS[@]} -gt 0 ]; then
+    PORTS_SECTION="ports:"
+    for port in "${PORTS[@]}"; do
+        PORTS_SECTION="$PORTS_SECTION\n      - \"${port}:${port}\""
+    done
+    # Replace placeholder with ports section
+    sed "s|    {{PORTS_SECTION}}|    ${PORTS_SECTION}|" "$DEVCONTAINER_DIR/compose.yaml.template" | sed 's/\\n/\n/g' > "$DEVCONTAINER_DIR/compose.yaml"
+
+    # Generate devcontainer.local.json
+    PORTS_JSON=$(printf '%s,' "${PORTS[@]}" | sed 's/,$//')
+    cat > "$DEVCONTAINER_DIR/devcontainer.local.json" <<EOF
+{
+  "forwardPorts": [${PORTS_JSON}]
+}
+EOF
+
+    echo "✓ Port forwarding configured: ${PORTS[*]}"
+else
+    # No ports needed - remove the placeholder line entirely
+    sed '/{{PORTS_SECTION}}/d' "$DEVCONTAINER_DIR/compose.yaml.template" > "$DEVCONTAINER_DIR/compose.yaml"
+
+    # Create empty port forwarding config
+    cat > "$DEVCONTAINER_DIR/devcontainer.local.json" <<EOF
+{
+  "forwardPorts": []
+}
+EOF
+
+    echo -e "${GREEN}✓ No port forwarding configured${NC}"
+fi
+
+# Add comment to compose.yaml about configuration
+if [ -f "$DEVCONTAINER_DIR/compose.yaml" ]; then
+    # Prepend configuration info as comment
+    {
+        echo "# DevContainer configuration"
+        echo "# Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+        echo "# Project type: ${PROJECT_TYPE}"
+        if [ ${#PORTS[@]} -gt 0 ]; then
+            echo "# Ports: ${PORTS[*]}"
+        else
+            echo "# Ports: none"
+        fi
+        echo ""
+        cat "$DEVCONTAINER_DIR/compose.yaml"
+    } > "$DEVCONTAINER_DIR/compose.yaml.tmp"
+    mv "$DEVCONTAINER_DIR/compose.yaml.tmp" "$DEVCONTAINER_DIR/compose.yaml"
+fi
+
+echo ""
+echo -e "${GREEN}=== Initialization Complete ===${NC}"
+echo ""
+echo "Configuration summary:"
+echo "  Project Type: ${PROJECT_TYPE}"
+if [ ${#PORTS[@]} -gt 0 ]; then
+    echo "  Forwarded Ports: ${PORTS[*]}"
+else
+    echo "  Forwarded Ports: none"
+fi
+echo ""
+echo -e "${GREEN}You can now open this project in VS Code with DevContainers.${NC}"
+echo ""
+echo "Next steps:"
+echo "  1. The compose.yaml file has been generated (gitignored)"
+echo "  2. Open in VS Code: code . (then Reopen in Container)"
+echo "  3. Or use DevContainer CLI: devcontainer up --workspace-folder ."

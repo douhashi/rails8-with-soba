@@ -1,0 +1,55 @@
+#!/bin/bash
+
+echo "Stopping devcontainer..."
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../.env"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_NAME="$(basename "$PROJECT_ROOT")"
+
+# Load COMPOSE_PROJECT_NAME from .env file
+if [ -f "$ENV_FILE" ]; then
+    # Source the .env file to get COMPOSE_PROJECT_NAME
+    export $(grep -E '^COMPOSE_PROJECT_NAME=' "$ENV_FILE" | xargs)
+fi
+
+# Use COMPOSE_PROJECT_NAME from .env or fallback to directory name with _devcontainer suffix
+if [ -z "$COMPOSE_PROJECT_NAME" ]; then
+    COMPOSE_PROJECT_NAME="${PROJECT_NAME}_devcontainer"
+    echo "Warning: COMPOSE_PROJECT_NAME not found in .env, using default: $COMPOSE_PROJECT_NAME"
+fi
+
+echo "Compose project name: $COMPOSE_PROJECT_NAME"
+
+# Stop containers managed by docker compose if compose files exist
+cd .devcontainer 2>/dev/null || true
+if [ -f "compose.yaml" ] || [ -f "compose.yml" ]; then
+    if [ -f "compose.yaml" ]; then
+        echo "Running docker compose down..."
+        docker compose --env-file .env -f compose.yaml down
+    elif [ -f "compose.yml" ]; then
+        echo "Running docker compose down..."
+        docker compose --env-file .env -f compose.yml down
+    fi
+else
+    echo "No compose file found, skipping docker compose down"
+fi
+cd - >/dev/null 2>&1 || true
+
+# Stop containers by project name (regardless of compose file existence)
+echo "Searching for containers with project name: $PROJECT_NAME"
+CONTAINER_IDS=$(docker ps -q --filter "name=${PROJECT_NAME}")
+
+if [ -n "$CONTAINER_IDS" ]; then
+    echo "Found containers to stop:"
+    docker ps --filter "name=${PROJECT_NAME}" --format "table {{.Names}}\t{{.Status}}"
+    echo ""
+    echo "Stopping containers..."
+    docker stop $CONTAINER_IDS
+    echo "Containers stopped."
+else
+    echo "No running containers found with project name: $PROJECT_NAME"
+fi
+
+echo "Devcontainer cleanup completed."

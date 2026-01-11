@@ -1,0 +1,29 @@
+{
+  "name": "Claude Code",
+  "dockerComposeFile": "compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:latest": {},
+    "ghcr.io/roul/devcontainer-features/mise-python:1": {},
+    "ghcr.io/roul/devcontainer-features/mise-node:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/tmux-apt-get:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true,
+      "dockerDashComposeVersion": "v2",
+      "installDockerBuildx": true
+    }
+  },
+  "mounts": [
+    "type=bind,consistency=cached,source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,readonly",
+    "type=bind,consistency=cached,source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh",
+    "type=bind,consistency=cached,source=${localEnv:HOME}/.claude,target=/home/vscode/.claude",
+    "type=bind,consistency=cached,source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh"
+  ],
+  "forwardPorts": [],
+  // Ports are configured via devcontainer.local.json after running init script
+  "postCreateCommand": "/bin/bash .devcontainer/scripts/setup.sh",
+  "initializeCommand": "/bin/bash -c 'if [ ! -f .devcontainer/compose.yaml ]; then echo \"ERROR: Project not initialized. Run: .devcontainer/bin/init\"; exit 1; fi'"
+}
