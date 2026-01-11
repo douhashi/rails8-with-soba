@@ -1,7 +1,24 @@
-# Project Name
+# README
 
-This README should be replaced with your actual project documentation.
+This README would normally document whatever steps are necessary to get the
+application up and running.
 
-## Getting Started
+Things you may want to cover:
 
-For development environment setup instructions, please see [GETTING_STARTED.md](./GETTING_STARTED.md).
+* Ruby version
+
+* System dependencies
+
+* Configuration
+
+* Database creation
+
+* Database initialization
+
+* How to run the test suite
+
+* Services (job queues, cache servers, search engines, etc.)
+
+* Deployment instructions
+
+* ...
