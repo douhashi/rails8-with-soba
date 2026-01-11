@@ -1,0 +1,22 @@
+# Lefthook configuration
+# https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: true
+  commands:
+    rubocop:
+      glob: "*.rb"
+      run: |
+        bundle exec rubocop --autocorrect {staged_files} && \
+        if ! git diff --quiet {staged_files}; then
+          echo ""
+          echo "=========================================="
+          echo " RuboCop auto-corrected some files."
+          echo " Please review the changes, then run:"
+          echo ""
+          echo "   git add -u && git commit"
+          echo ""
+          echo "=========================================="
+          exit 1
+        fi
+      stage_fixed: false
