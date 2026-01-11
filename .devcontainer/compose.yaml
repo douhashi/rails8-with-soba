@@ -1,0 +1,14 @@
+# DevContainer configuration
+# Generated: 2026-01-11 13:12:45 UTC
+# Project type: web
+# Ports: 3000
+
+services:
+  app:
+    image: mcr.microsoft.com/vscode/devcontainers/base:ubuntu-24.04
+    volumes:
+      - ../..:/workspaces
+    ports:
+      - "3000:3000"
+    command: sleep infinity
+    network_mode: bridge
