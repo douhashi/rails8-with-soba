@@ -1,3 +1,8 @@
 @import "tailwindcss";
 
+/* Scan Rails views and other template files */
+@source "../../views/**/*.html.erb";
+@source "../components/**/*.rb";
+@source "../components/**/*.html.erb";
+
 /* Custom styles can be added below */
